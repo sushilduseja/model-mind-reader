@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Exclude compiled Python files
+*.pyc
+
 # C extensions
 *.so
 
@@ -179,3 +182,17 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Exclude virtual environments
+.env/
+.venv/
+venv/
+ENV/
+
+# Exclude IDE-specific files
+.idea/
+.vscode/
+
+# Exclude logs and temporary files
+*.log
+*.tmp

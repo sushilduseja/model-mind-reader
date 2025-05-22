@@ -18,6 +18,11 @@ def preprocess_data(data, target_column):
     X = data.drop(columns=[target_column])
     y = data[target_column]
 
+    # Drop non-numeric columns that are not the target
+    non_numeric_cols = X.select_dtypes(include=['object']).columns
+    cols_to_drop = [col for col in non_numeric_cols if col != target_column]
+    X = X.drop(columns=cols_to_drop)
+
     # Encode categorical columns
     for column in X.select_dtypes(include=['object']).columns:
         X[column] = LabelEncoder().fit_transform(X[column])
@@ -45,6 +50,9 @@ def train_model(request: TrainModelRequest):
         # Preprocess the data
         X, y = preprocess_data(data, target_column)
 
+        # Validate target variable
+        validate_target_variable(y)
+
         # Split the data
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
@@ -62,12 +70,21 @@ def train_model(request: TrainModelRequest):
 
         # Calculate performance metrics
         performance = {
-            "accuracy": accuracy_score(y_test, predictions),
-            "precision": precision_score(y_test, predictions, average='weighted'),
-            "recall": recall_score(y_test, predictions, average='weighted')
+            "accuracy": safe_division(accuracy_score(y_test, predictions), 1),
+            "precision": safe_division(precision_score(y_test, predictions, average='weighted'), 1),
+            "recall": safe_division(recall_score(y_test, predictions, average='weighted'), 1)
         }
 
         return {"model_type": model_type, "performance": performance}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+def validate_target_variable(y: List[int]) -> None:
+    """Validate that the target variable has variance."""
+    if len(set(y)) == 1:
+        raise ValueError("Target variable has no variance (constant value).")
+
+def safe_division(numerator: float, denominator: float) -> float:
+    """Perform safe division to avoid division by zero."""
+    return numerator / denominator if denominator != 0 else 0

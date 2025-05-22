@@ -8,6 +8,7 @@ from pydantic import BaseModel
 import pandas as pd
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.linear_model import LogisticRegression
+from typing import List
 
 # Initialize FastAPI app (if not already initialized in another module)
 app = FastAPI()
@@ -77,3 +78,10 @@ def generate_explanations(model, data, predictions):
     shap_values = shap_explainer(numeric_data)
     shap.summary_plot(shap_values, numeric_data, show=False)
     st.pyplot(bbox_inches='tight')
+
+def validate_feature_alignment(training_features: List[str], explanation_features: List[str]) -> None:
+    """Validate that the features in the explanation input match the training features."""
+    if set(training_features) != set(explanation_features):
+        raise ValueError("Feature names in explanation input do not match training features.")
+    if len(training_features) != len(explanation_features):
+        raise ValueError("Feature dimensions mismatch between training and explanation input.")
