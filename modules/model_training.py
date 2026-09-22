@@ -1,5 +1,6 @@
 from typing import List, Optional
 
+import pandas as pd
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from sklearn.linear_model import LogisticRegression
@@ -7,7 +8,6 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.tree import DecisionTreeClassifier
-import pandas as pd
 
 app = FastAPI()
 
@@ -16,14 +16,14 @@ def preprocess_data(data, target_column):
     X = data.drop(columns=[target_column])
     y = data[target_column]
 
-    non_numeric_cols = X.select_dtypes(include=['object']).columns
+    non_numeric_cols = X.select_dtypes(include=["object"]).columns
     cols_to_drop = [col for col in non_numeric_cols if col != target_column]
     X = X.drop(columns=cols_to_drop)
 
-    for column in X.select_dtypes(include=['object']).columns:
+    for column in X.select_dtypes(include=["object"]).columns:
         X[column] = LabelEncoder().fit_transform(X[column])
 
-    if y.dtype == 'object':
+    if y.dtype == "object":
         y = LabelEncoder().fit_transform(y)
 
     return X, y
@@ -46,7 +46,9 @@ def train_model(request: TrainModelRequest):
 
         validate_target_variable(y)
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
 
         if model_type == "Decision Tree":
             model = DecisionTreeClassifier()
@@ -60,8 +62,12 @@ def train_model(request: TrainModelRequest):
 
         performance = {
             "accuracy": safe_division(accuracy_score(y_test, predictions), 1),
-            "precision": safe_division(precision_score(y_test, predictions, average='weighted'), 1),
-            "recall": safe_division(recall_score(y_test, predictions, average='weighted'), 1)
+            "precision": safe_division(
+                precision_score(y_test, predictions, average="weighted"), 1
+            ),
+            "recall": safe_division(
+                recall_score(y_test, predictions, average="weighted"), 1
+            ),
         }
 
         return {"model_type": model_type, "performance": performance}
