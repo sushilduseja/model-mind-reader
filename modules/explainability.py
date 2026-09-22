@@ -1,33 +1,34 @@
-import streamlit as st
+from typing import List
+
 import lime.lime_tabular
-import shap
-import numpy as np
-from sklearn.preprocessing import LabelEncoder
+import pandas as pd
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import pandas as pd
-from sklearn.tree import DecisionTreeClassifier
 from sklearn.linear_model import LogisticRegression
-from typing import List
+from sklearn.preprocessing import LabelEncoder
+from sklearn.tree import DecisionTreeClassifier
 
 # Initialize FastAPI app (if not already initialized in another module)
 app = FastAPI()
 
+
 def preprocess_data_for_explainer(data, target_column):
-    """Preprocesses data to ensure it is numeric for LIME and SHAP explainers."""
+    """Preprocess data to numeric form for LIME/SHAP explainers."""
     data = data.copy()
-    for column in data.select_dtypes(include=['object']).columns:
+    for column in data.select_dtypes(include=["object"]).columns:
         data[column] = LabelEncoder().fit_transform(data[column])
-        
+
     X = data.drop(columns=[target_column])
     y = data[target_column]
     return X, y
+
 
 # Define request model
 class ExplainabilityRequest(BaseModel):
     data: list  # List of dictionaries representing rows of data
     target_column: str
     model_type: str  # "Decision Tree" or "Logistic Regression"
+
 
 @app.post("/generate_explanations")
 def generate_explanations(request: ExplainabilityRequest):
@@ -47,41 +48,26 @@ def generate_explanations(request: ExplainabilityRequest):
             raise HTTPException(status_code=400, detail="Invalid model type")
 
         # Generate explanations using LIME or SHAP
-        explainer = lime.lime_tabular.LimeTabularExplainer(X.values, feature_names=X.columns.tolist(), class_names=["Class 0", "Class 1"], mode="classification")
-        explanation = explainer.explain_instance(X.iloc[0].values, model.predict_proba)
+        explainer = lime.lime_tabular.LimeTabularExplainer(
+            X.values,
+            feature_names=X.columns.tolist(),
+            class_names=["Class 0", "Class 1"],
+            mode="classification",
+        )
+        proba = model.predict_proba
+        explanation = explainer.explain_instance(X.iloc[0].values, proba)
 
         return {"explanation": explanation.as_list()}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-def generate_explanations(model, data, predictions):
-    """Generates LIME and SHAP explanations."""
-    st.subheader("LIME Explanations")
 
-    # Preprocess data for LIME
-    numeric_data = preprocess_data_for_explainer(data)
-
-    lime_explainer = lime.lime_tabular.LimeTabularExplainer(
-        training_data=np.array(numeric_data),
-        feature_names=numeric_data.columns,
-        class_names=["Class 0", "Class 1"],
-        mode="classification"
-    )
-
-    instance_idx = st.number_input("Enter the index of the instance to explain", min_value=0, max_value=len(data)-1, step=1)
-    explanation = lime_explainer.explain_instance(numeric_data.iloc[instance_idx].values, model.predict_proba)
-    st.write(explanation.as_list())
-
-    st.subheader("SHAP Summary Plot")
-    shap_explainer = shap.Explainer(model, numeric_data)
-    shap_values = shap_explainer(numeric_data)
-    shap.summary_plot(shap_values, numeric_data, show=False)
-    st.pyplot(bbox_inches='tight')
-
-def validate_feature_alignment(training_features: List[str], explanation_features: List[str]) -> None:
-    """Validate that the features in the explanation input match the training features."""
+def validate_feature_alignment(
+    training_features: List[str], explanation_features: List[str]
+) -> None:
+    """Check explanation input features match the training features."""
     if set(training_features) != set(explanation_features):
-        raise ValueError("Feature names in explanation input do not match training features.")
+        raise ValueError("Feature names do not match training features.")
     if len(training_features) != len(explanation_features):
-        raise ValueError("Feature dimensions mismatch between training and explanation input.")
+        raise ValueError("Feature dimensions mismatch.")
